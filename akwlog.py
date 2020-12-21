@@ -24,7 +24,7 @@ def get_file_contents(file_dir):
             return [row for row in csv.DictReader(file)]
     except:
         print("The file does not exist or cannot be read.")
-        return None
+        sys.exit(1)
 
 
 def main():
@@ -131,10 +131,13 @@ def is_valid_input(args):
 
 
 def does_mats_exist(material):
+    matsFile = 'mats.txt'
+    matsData = get_file_contents(matsFile)
+    print(matsData)
+    pass
     # Read the entire log file of mats
     # Check if material exists from the logfile of mats
     # Return true or false
-    pass
 
 
 # Create a function that prints statistics based on the log file.
@@ -156,32 +159,29 @@ def show_operator_statistics():
         Return: None
     """
     logs = get_file_contents(LOG_DIR)
-    if logs != None:
-        statistics = set_op_dict(logs)
-        row = (13, 8, 12, 7, 8, 15, 10)
-        print("Operator Stats".center(75, '='))  # Title
-        print("Operator".ljust(row[0]),          # Columns
-              "AmtProc".ljust(row[1]),
-              "Byproducts".ljust(row[2]),
-              "TRate".ljust(row[3]),
-              "ARate".ljust(row[4]),
-              "TopProcessed".ljust(row[5]),
-              "TopByproduct".ljust(row[6]),
-              sep='')
-        for op in statistics:
-            opstats = statistics[op].printed_stats()
-            print(
-                opstats[0].ljust(row[0]),       # Name
-                opstats[1].ljust(row[1]),       # Amount processed
-                opstats[2].ljust(row[2]),       # Byproducts produced
-                opstats[3].ljust(row[3]),       # Theoretical rate
-                opstats[4].ljust(row[4]),       # Actual rate
-                opstats[5].ljust(row[5]),       # Top processed material
-                opstats[6].ljust(row[6]),       # Top byproduct produced
-                sep='')
 
-    else:
-        print("No log file exists.")
+    statistics = set_op_dict(logs)
+    row = (13, 8, 12, 7, 8, 15, 10)
+    print("Operator Stats".center(75, '='))  # Title
+    print("Operator".ljust(row[0]),          # Columns
+          "AmtProc".ljust(row[1]),
+          "Byproducts".ljust(row[2]),
+          "TRate".ljust(row[3]),
+          "ARate".ljust(row[4]),
+          "TopProcessed".ljust(row[5]),
+          "TopByproduct".ljust(row[6]),
+          sep='')
+    for op in statistics:
+        opstats = statistics[op].printed_stats()
+        print(
+            opstats[0].ljust(row[0]),       # Name
+            opstats[1].ljust(row[1]),       # Amount processed
+            opstats[2].ljust(row[2]),       # Byproducts produced
+            opstats[3].ljust(row[3]),       # Theoretical rate
+            opstats[4].ljust(row[4]),       # Actual rate
+            opstats[5].ljust(row[5]),       # Top processed material
+            opstats[6].ljust(row[6]),       # Top byproduct produced
+            sep='')
 
 
 def set_op_dict(logs):
