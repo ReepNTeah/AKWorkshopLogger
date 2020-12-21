@@ -86,11 +86,12 @@ def log_attempt(args):
 
         Return: None.
     """
-    fields = ('Operator', 'Material', 'Amount', 'Byproducts', 'Timestamp')
 
     is_valid, invalidity = is_valid_input(args)
 
     if is_valid:
+        fields = ('Operator', 'Material', 'Amount', 'Byproducts', 'Timestamp')
+
         with open(LOG_DIR, 'a+', newline='\n') as logs:
 
             fix_eof(logs)
@@ -123,8 +124,17 @@ def is_valid_input(args):
 
     if len(args.byp) > args.amt:
         return (False, "More byproducts than amount processed.")
+    elif does_mats_exist(args.mat):  # check if mats exist
+        pass
     else:
         return (True, "")
+
+
+def does_mats_exist(material):
+    # Read the entire log file of mats
+    # Check if material exists from the logfile of mats
+    # Return true or false
+    pass
 
 
 # Create a function that prints statistics based on the log file.
@@ -195,6 +205,7 @@ def set_op_dict(logs):
         stats_dict[operator].set_byproducts(log['Byproducts'])
 
     return stats_dict
+
 
 class Operator:
     def __init__(self, name, brate):
