@@ -2,3 +2,4 @@ test.py
 parsertest.py
 wslogs2.csv
 *.txt
+.vscode
