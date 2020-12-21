@@ -133,7 +133,8 @@ def is_valid_input(args):
 def does_mats_exist(material):
     matsFile = 'mats.txt'
     matsData = get_file_contents(matsFile)
-    print(matsData)
+    for item in matsData:
+        print(item['alias'])
     pass
     # Read the entire log file of mats
     # Check if material exists from the logfile of mats
