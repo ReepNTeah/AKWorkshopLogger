@@ -124,8 +124,8 @@ def is_valid_input(args):
 
     if len(args.byp) > args.amt:
         return (False, "More byproducts than amount processed.")
-    elif does_mats_exist(args.mat):  # check if mats exist
-        pass
+    elif does_mats_exist(args.mat) == False:  # check if mats exist
+        return(False, "Material does not exist")
     else:
         return (True, "")
 
@@ -133,9 +133,14 @@ def is_valid_input(args):
 def does_mats_exist(material):
     matsFile = 'mats.txt'
     matsData = get_file_contents(matsFile)
+    matsList = []
     for item in matsData:
-        print(item['alias'])
-    pass
+        matsList.append(
+            Material(item['alias'], item['name'], item['submats'].split(' ')))
+    for mat in matsList:
+        if material == mat.name:
+            return True
+    return False
     # Read the entire log file of mats
     # Check if material exists from the logfile of mats
     # Return true or false
@@ -290,6 +295,25 @@ class Operator:
             elif num == topmat[1]:
                 return 'More than 1'
         return f'{topmat[0]}({topmat[1]})'
+
+
+class Material:
+    def __init__(self, alias, name, submats):
+        """
+            name: string of material name.
+            tier: int, 1-5
+            submats: dict() of {string: int}
+        """
+        self.alias = alias[:-1]
+        self.name = str(name)
+        self.tier = int(alias[-1:])
+        self.submats = {aliased[1:]: int(aliased[:1]) for aliased in submats}
+
+    def __str__(self):
+        return f'Material(name={self.name}, tier={self.tier}, submats={self.submats})'
+
+    def __repr__(self):
+        return f'{self.name}, {self.tier}, {[name for name in self.submats.items()]}'
 
 
 if __name__ == "__main__":
