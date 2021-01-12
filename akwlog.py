@@ -10,7 +10,7 @@ import sys
 OPLIST_DIR = Path.home() / 'aklogs' / 'oplist.txt'
 LOG_DIR = Path.home() / 'aklogs' / 'wslogs.csv'
 
-TEST_SHOW_O = ['show', '-o']
+# TEST_SHOW_O = ['show', '-o']
 
 
 def get_file_contents(file_dir):
@@ -36,8 +36,8 @@ def main():
     parser_wlog = subparser.add_parser('wlog', help='Log a workshop attempt.')
     parser_wlog.add_argument("op", help="Operator name", type=str)
     parser_wlog.add_argument("mat", help="Material processed", type=str)
-    parser_wlog.add_argument(
-        "-amt", help="Amount of material processed (defaults to 1)", nargs='?', default=1, type=int)
+    # parser_wlog.add_argument(
+    #     "-amt", help="Amount of material processed (defaults to 1)", nargs='?', default=1, type=int)
     parser_wlog.add_argument(
         "-byp", help="Byproducts produced (defaults to none)", nargs='*', default=[], type=str)
     parser_wlog.set_defaults(func=log_attempt)
@@ -90,7 +90,7 @@ def log_attempt(args):
     is_valid, invalidity = is_valid_input(args)
 
     if is_valid:
-        fields = ('Operator', 'Material', 'Amount', 'Byproducts', 'Timestamp')
+        fields = ('Operator', 'Material', 'Byproducts', 'Timestamp')
 
         with open(LOG_DIR, 'a+', newline='\n') as logs:
 
@@ -101,12 +101,15 @@ def log_attempt(args):
             if logs.tell() == 0:
                 writer.writeheader()
 
+            args.op = args.op.title()
+            args.mat = args.mat.title()
+            args.byp = [byp.title() for byp in args.byp]
+
             writer.writerow(
-                {fields[0]: args.op.title(),
+                {fields[0]: args.op,
                  fields[1]: args.mat,
-                 fields[2]: args.amt,
-                 fields[3]: f"{' '.join(args.byp)}",
-                 fields[4]: date.today().strftime("%d-%m-%Y")})
+                 fields[2]: f"{' '.join(args.byp)}",
+                 fields[3]: date.today().strftime("%d-%m-%Y")})
 
         print("Log successful.")
     else:
@@ -120,11 +123,21 @@ def is_valid_input(args):
     # Possible invalid inputs include:
     # - The operator does not exist
     # - The material does not exist
-    # - The byproducts are greater than the processed amount - Done
+    # - The byproducts are greater than the processed amount - Needs revision
 
-    if len(args.byp) > args.amt:
-        return (False, "More byproducts than amount processed.")
-    elif does_mats_exist(args.mat) == False:  # check if mats exist
+    # if len(args.byp) > args.amt:
+    #     return (False, "More byproducts than amount processed.")
+    matcher = re.compile(r'^(\d*)(\D+)(\d)$')
+
+    mats_group = matcher.search(args.mat)
+
+    byproducts = [matcher.search(byp) for byp in args.byp]
+
+    total_byproducts = sum(int(matched.group(1)) if matched !=
+                           '' else 0 for matched in byproducts)
+
+    # check if mats exist
+    if does_mats_exist(mats_group.group(2) + mats_group.group(3)) == False:
         return(False, "Material does not exist")
     else:
         return (True, "")
@@ -136,9 +149,9 @@ def does_mats_exist(material):
     matsList = []
     for item in matsData:
         matsList.append(
-            Material(item['alias'], item['name'], item['submats'].split(' ')))
+            Material(item['alias'], item['name'], item['submats'].strip().split(' ')))
     for mat in matsList:
-        if material == mat.name:
+        if material.lower() == mat.alias.lower():
             return True
     return False
     # Read the entire log file of mats
@@ -207,8 +220,10 @@ def set_op_dict(logs):
     for log in logs:
         operator = log['Operator']
         stats_dict[operator].add_processed_amount(
-            log['Material'], int(log['Amount']))
+            log['Material'])
         stats_dict[operator].set_byproducts(log['Byproducts'])
+
+    print(stats_dict['Blue_Poison'].byps)
 
     return stats_dict
 
@@ -238,25 +253,28 @@ class Operator:
     #             f'arate={self.arate})',
     #             f'{self.matprocs}')
 
-    def add_processed_amount(self, processed, amount):
+    def add_processed_amount(self, processed):
         """
             Adds to the operator's total byproduct amount.
         """
-        self.add_material(self.matprocs, processed, amount)
-        self.nproc += amount
+
+        self.add_material(self.matprocs, processed)
+        self.nproc = sum(self.matprocs.values())
+        self.get_arate()
 
     def set_byproducts(self, byproducts):
         """
             Counts the number of byproducts in the iterable and adds it to the operator's total byproducts produced.
         """
-        bypList = byproducts.split(' ')
+        bypList = byproducts.split(' ') if byproducts != "" else []
 
-        for item in byproducts:
-            self.add_material(self.byps, item)
-
-        self.nbyp += len(bypList)
-
-        self.get_arate()
+        if bypList != []:
+            for item in bypList:
+                self.add_material(self.byps, item)
+            self.nbyp = sum(self.byps.values())
+            self.get_arate()
+        else:
+            pass
 
     def printed_stats(self):
         """
@@ -266,22 +284,32 @@ class Operator:
 
     def get_arate(self):
         """
-            Recalculates the actual rate of the object.
+            Recalculates the arate of the operator.
         """
-        self.arate = round(self.nbyp / self.nproc * 100, 2)
+        self.arate = round(self.nbyp / self.nproc * 100,
+                           2) if self.nproc != 0 else 0
 
-    @staticmethod
-    def add_material(dict, material, amount=1):
+    @ staticmethod
+    def add_material(dict, material):
         """
             dict: Dict{'MaterialName': int}
             material: str
 
             Adds material to dict.
         """
-        if dict.setdefault(material, amount) != amount:
-            dict[material] += amount
+        matchrx = re.compile(r'^(\d*)(\D+\d)$')
 
-    @staticmethod
+        matched = matchrx.search(material)
+
+        amount = int(matched.group(1)) if matched.group(1) != '' else 1
+        mat_name = matched.group(2)
+
+        if mat_name in dict.keys():
+            dict[mat_name] += amount
+        else:
+            dict[mat_name] = amount
+
+    @ staticmethod
     def get_topmat(matDict):
         """
             Returns a string of the most processed byproduct. If there is more than one top product, returns "More than 1".
@@ -304,7 +332,7 @@ class Material:
             tier: int, 1-5
             submats: dict() of {string: int}
         """
-        self.alias = alias[:-1]
+        self.alias = alias
         self.name = str(name)
         self.tier = int(alias[-1:])
         self.submats = {aliased[1:]: int(aliased[:1]) for aliased in submats}
