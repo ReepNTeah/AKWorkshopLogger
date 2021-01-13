@@ -131,14 +131,18 @@ def is_valid_input(args):
 
     mats_group = matcher.search(args.mat)
 
+    mat_amt = int(mats_group.group(1)) if mats_group.group(1) != '' else 1
+
     byproducts = [matcher.search(byp) for byp in args.byp]
 
     total_byproducts = sum(int(matched.group(1)) if matched !=
-                           '' else 0 for matched in byproducts)
+                           '' else 1 for matched in byproducts)
 
     # check if mats exist
     if does_mats_exist(mats_group.group(2) + mats_group.group(3)) == False:
         return(False, "Material does not exist")
+    elif mat_amt < total_byproducts:
+        return(False, "Byproducts amount more than processed amount")
     else:
         return (True, "")
 
