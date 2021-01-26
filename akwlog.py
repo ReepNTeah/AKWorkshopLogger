@@ -10,7 +10,7 @@ import sys
 OPLIST_DIR = Path.home() / 'aklogs' / 'oplist.txt'
 LOG_DIR = Path.home() / 'aklogs' / 'wslogs.csv'
 
-# TEST_SHOW_O = ['show', '-o']
+# TEST_SHOW_O = ['wlog', 'nian', 'Mang4', '-b', 'Mang3']
 
 
 def get_file_contents(file_dir):
@@ -87,7 +87,7 @@ def log_attempt(args):
         Return: None.
     """
 
-    is_valid, invalidity = is_valid_input(args)
+    is_valid = is_valid_input(args)
 
     if is_valid:
         fields = ('Operator', 'Material', 'Byproducts', 'Timestamp')
@@ -113,7 +113,7 @@ def log_attempt(args):
 
         print("Log successful.")
     else:
-        print("Invalid input:", invalidity)
+        print("Invalid input.")
 
 
 def is_valid_input(args):
@@ -122,8 +122,9 @@ def is_valid_input(args):
     """
     # Possible invalid inputs include:
     # - The operator does not exist
-    # - The material does not exist
+    # - The material does not exist - Done
     # - The byproducts are greater than the processed amount - Needs revision
+    # - The byproduct does not exist
 
     # if len(args.byp) > args.amt:
     #     return (False, "More byproducts than amount processed.")
@@ -131,32 +132,40 @@ def is_valid_input(args):
 
     mats_group = matcher.search(args.mat)
 
+    mat_name = mats_group.group(2) + mats_group.group(3)
+
     mat_amt = int(mats_group.group(1)) if mats_group.group(1) != '' else 1
 
     byproducts = [matcher.search(byp) for byp in args.byp]
-
-    total_byproducts = sum(int(matched.group(1)) if matched !=
+    total_byproducts = sum(int(matched.group(1)) if matched.group(1) !=
                            '' else 1 for matched in byproducts)
 
+    byproducts = [byp.group(2) + byp.group(3) for byp in byproducts]
+
     # check if mats exist
-    if does_mats_exist(mats_group.group(2) + mats_group.group(3)) == False:
-        return(False, "Material does not exist")
+    if does_mats_exist(mat_name) == False:
+        return False
+    elif byproducts != [] and does_mats_exist(byproducts) == False:
+        return False
     elif mat_amt < total_byproducts:
-        return(False, "Byproducts amount more than processed amount")
+        print("Byproducts amount more than processed amount")
+        return False
     else:
-        return (True, "")
+        return True
 
 
 def does_mats_exist(material):
-    matsFile = 'mats.txt'
-    matsData = get_file_contents(matsFile)
-    matsList = []
+    mats_list = [material] if type(material) == str else material
+    mats_file = 'mats.txt'
+    matsData = get_file_contents(mats_file)
+    check_list = []
     for item in matsData:
-        matsList.append(
-            Material(item['alias'], item['name'], item['submats'].strip().split(' ')))
-    for mat in matsList:
-        if material.lower() == mat.alias.lower():
+        check_list.append(item['alias'].lower())
+    for mat in mats_list:
+        if mat.lower() in check_list:
             return True
+        else:
+            print(f"Material '{mat}' does not exist.")
     return False
     # Read the entire log file of mats
     # Check if material exists from the logfile of mats
@@ -227,7 +236,7 @@ def set_op_dict(logs):
             log['Material'])
         stats_dict[operator].set_byproducts(log['Byproducts'])
 
-    print(stats_dict['Blue_Poison'].byps)
+    # print(stats_dict['Blue_Poison'].byps)
 
     return stats_dict
 
@@ -339,7 +348,8 @@ class Material:
         self.alias = alias
         self.name = str(name)
         self.tier = int(alias[-1:])
-        self.submats = {aliased[1:]: int(aliased[:1]) for aliased in submats}
+        self.submats = {aliased[1:]: int(aliased[:1])
+                        for aliased in submats} if not submats else {}
 
     def __str__(self):
         return f'Material(name={self.name}, tier={self.tier}, submats={self.submats})'
