@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import sys
 
-# Last progress: Added the last column in the report function. Find a way to make another attribute in the operatorstatistics class to show the most processed material.
+# Last progress: Trying to add an LMD and sanity property to the material so that the print function can handle it.
 OPLIST_DIR = Path.home() / 'aklogs' / 'oplist.txt'
 LOG_DIR = Path.home() / 'aklogs' / 'wslogs.csv'
 
@@ -121,10 +121,10 @@ def is_valid_input(args):
         Returns a tuple containing a Boolean and a string message of invalidity.
     """
     # Possible invalid inputs include:
-    # - The operator does not exist
+    # - The operator does not exist - Done
     # - The material does not exist - Done
     # - The byproducts are greater than the processed amount - Needs revision
-    # - The byproduct does not exist
+    # - The byproduct does not exist - Done
 
     # if len(args.byp) > args.amt:
     #     return (False, "More byproducts than amount processed.")
@@ -143,7 +143,9 @@ def is_valid_input(args):
     byproducts = [byp.group(2) + byp.group(3) for byp in byproducts]
 
     # check if mats exist
-    if does_mats_exist(mat_name) == False:
+    if does_operator_exist(args.op) == False:
+        return False
+    elif does_mats_exist(mat_name) == False:
         return False
     elif byproducts != [] and does_mats_exist(byproducts) == False:
         return False
@@ -172,6 +174,15 @@ def does_mats_exist(material):
     # Return true or false
 
 
+def does_operator_exist(operator):
+    op_list = get_file_contents(OPLIST_DIR)
+
+    for op in op_list:
+        if operator.lower() == op['Operator'].lower():
+            return True
+    print(f"Operator '{operator}' does not exist.")
+    return False
+
 # Create a function that prints statistics based on the log file.
 # Operator                          - Done
 # Number of products processed      - Done
@@ -181,6 +192,7 @@ def does_mats_exist(material):
 # Number of most processed product  - Done
 # Number of most produced byproduct - Done
 # Total sanity spent                - In progress
+
 
 def show_operator_statistics():
     """
@@ -193,7 +205,7 @@ def show_operator_statistics():
     logs = get_file_contents(LOG_DIR)
 
     statistics = set_op_dict(logs)
-    row = (13, 8, 12, 7, 8, 15, 10)
+    row = (13, 8, 12, 7, 8, 13, 13, 10)
     print("Operator Stats".center(75, '='))  # Title
     print("Operator".ljust(row[0]),          # Columns
           "AmtProc".ljust(row[1]),
@@ -202,6 +214,7 @@ def show_operator_statistics():
           "ARate".ljust(row[4]),
           "TopProcessed".ljust(row[5]),
           "TopByproduct".ljust(row[6]),
+          "Sanity Used".ljust(row[7]),
           sep='')
     for op in statistics:
         opstats = statistics[op].printed_stats()
@@ -213,6 +226,7 @@ def show_operator_statistics():
             opstats[4].ljust(row[4]),       # Actual rate
             opstats[5].ljust(row[5]),       # Top processed material
             opstats[6].ljust(row[6]),       # Top byproduct produced
+            opstats[7].ljust(row[7]),       # Total sanity used
             sep='')
 
 
@@ -228,7 +242,7 @@ def set_op_dict(logs):
 
     for op in op_list:
         stats_dict.setdefault(
-            op['Operator'], Operator(op['Operator'], op['Bonus Rate']))
+            op['Operator'], Operator(op['Operator'], op['Bonus Rate'], op['SanMod'], op['Trigger']))
 
     for log in logs:
         operator = log['Operator']
@@ -236,13 +250,11 @@ def set_op_dict(logs):
             log['Material'])
         stats_dict[operator].set_byproducts(log['Byproducts'])
 
-    # print(stats_dict['Blue_Poison'].byps)
-
     return stats_dict
 
 
 class Operator:
-    def __init__(self, name, brate):
+    def __init__(self, name, brate, sanmod, trigger):
         """
             Creates an Operator object.
         """
@@ -253,6 +265,14 @@ class Operator:
         self.arate = 0
         self.matprocs = {}
         self.byps = {}
+        self.lmdused = 0
+        self.sanityused = 0
+        self.trigger = trigger
+        try:
+            self.sanitymods = int(sanmod)
+        except:
+            print("An error has occured trying to make an operator.")
+            raise
 
     def __str__(self):
         return f'Operator(name={self.name},nproc={self.nproc},nbyp={self.nbyp},trate={self.trate},arate={self.arate})'
@@ -293,7 +313,7 @@ class Operator:
         """
             Returns a tuple of strings containing the operator's theoretical rate, number of processed mats, byproducts, and its current, actual rate.
         """
-        return (self.name, str(self.nproc), str(self.nbyp), f'{self.trate}%', f'{self.arate}%', self.get_topmat(self.matprocs), self.get_topmat(self.byps))
+        return (self.name, str(self.nproc), str(self.nbyp), f'{self.trate}%', f'{self.arate}%', self.get_topmat(self.matprocs), self.get_topmat(self.byps), f'{self.get_sanity_used()}')
 
     def get_arate(self):
         """
@@ -301,6 +321,22 @@ class Operator:
         """
         self.arate = round(self.nbyp / self.nproc * 100,
                            2) if self.nproc != 0 else 0
+
+    def get_sanity_used(self):
+        """
+            Calculates sanity used.
+        """
+        matchrx = re.compile(r'^(\D+)(\d)$')
+        total_san = 0
+        for material, amt in self.matprocs.items():
+            material_group = matchrx.search(material).group(1).lower()
+            sanity_of_material = 2 ** (int(matchrx.search(material).group(2)) - 2)
+            if self.trigger.lower() in material_group and self.sanitymods != 0:
+                sanity_of_material += self.sanitymods
+
+            total_san += sanity_of_material * amt
+
+        return total_san
 
     @ staticmethod
     def add_material(dict, material):
