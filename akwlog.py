@@ -205,8 +205,8 @@ def show_operator_statistics():
     logs = get_file_contents(LOG_DIR)
 
     statistics = set_op_dict(logs)
-    row = (13, 8, 12, 7, 8, 13, 13, 10)
-    print("Operator Stats".center(75, '='))  # Title
+    row = (13, 8, 12, 7, 8, 13, 13, 7, 8)
+    print("Operator Stats".center(89, '='))  # Title
     print("Operator".ljust(row[0]),          # Columns
           "AmtProc".ljust(row[1]),
           "Byproducts".ljust(row[2]),
@@ -214,7 +214,8 @@ def show_operator_statistics():
           "ARate".ljust(row[4]),
           "TopProcessed".ljust(row[5]),
           "TopByproduct".ljust(row[6]),
-          "Sanity Used".ljust(row[7]),
+          "Sanity".ljust(row[7]),
+          "LMD Used".rjust(row[8]),
           sep='')
     for op in statistics:
         opstats = statistics[op].printed_stats()
@@ -227,6 +228,7 @@ def show_operator_statistics():
             opstats[5].ljust(row[5]),       # Top processed material
             opstats[6].ljust(row[6]),       # Top byproduct produced
             opstats[7].ljust(row[7]),       # Total sanity used
+            opstats[8].rjust(row[8]),
             sep='')
 
 
@@ -313,7 +315,7 @@ class Operator:
         """
             Returns a tuple of strings containing the operator's theoretical rate, number of processed mats, byproducts, and its current, actual rate.
         """
-        return (self.name, str(self.nproc), str(self.nbyp), f'{self.trate}%', f'{self.arate}%', self.get_topmat(self.matprocs), self.get_topmat(self.byps), f'{self.get_sanity_used()}')
+        return (self.name, str(self.nproc), str(self.nbyp), f'{self.trate}%', f'{self.arate}%', self.get_topmat(self.matprocs), self.get_topmat(self.byps), f'{self.get_sanity_used()}', f'{self.get_lmd_used()}')
 
     def get_arate(self):
         """
@@ -337,6 +339,14 @@ class Operator:
             total_san += sanity_of_material * amt
 
         return total_san
+
+    def get_lmd_used(self):
+        print(self.name, self.matprocs)
+        for material, amt in self.matprocs.items():
+            rank = int(material[-1])
+            self.lmdused += ((rank - 1) * 100) * amt
+
+        return self.lmdused
 
     @ staticmethod
     def add_material(dict, material):
